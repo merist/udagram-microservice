@@ -1,53 +1,83 @@
-# Udagram Image Filtering Microservice
+# Udagram Microservice
 
 Udagram is a simple cloud application developed alongside the Udacity Cloud Engineering Nanodegree. It allows users to register and log into a web client, post photos to the feed, and process photos using an image filtering microservice.
 
-The project is split into three parts:
-1. [The Simple Frontend](/udacity-c3-frontend)
-A basic Ionic client web application which consumes the RestAPI Backend. 
-2. [The RestAPI Feed Backend](/udacity-c3-restapi-feed), a Node-Express feed microservice.
-3. [The RestAPI User Backend](/udacity-c3-restapi-user), a Node-Express user microservice.
+## Requirements
 
-## Getting Setup
+You need to have already installed:
+[Docker](https://docs.docker.com/docker-for-windows/install/) -
+[Docker desktop](https://hub.docker.com/editions/community/docker-ce-desktop-windows)
+[Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) -
+[Kitematic](https://docs.docker.com/toolbox/) (optional - graphical user interface (GUI) for running Docker containers).
+You will also need an account in docker hub to publish your images.
 
-> _tip_: this frontend is designed to work with the RestAPI backends). It is recommended you stand up the backend first, test using Postman, and then the frontend should integrate.
+## Setup Docker
 
-### Installing Node and NPM
-This project depends on Nodejs and Node Package Manager (NPM). Before continuing, you must download and install Node (NPM is included) from [https://nodejs.com/en/download](https://nodejs.org/en/download/).
+First check that docker is installed running the following command:
+`docker --version`
+Create all the docker images for every service:
+`docker build -t meristatha/udacity-restapi-user .`
+`docker build -t meristatha/udacity-restapi-feed .`
+`docker build -t meristatha/udacity-frontend .`
+`docker build -t meristatha/reverseproxy .`
+To check that the images are already created:
+`docker images`
+Before pushing your images to your docker hub you need to login:
+`docker login`
+and then set your credentials.
 
-### Installing Ionic Cli
-The Ionic Command Line Interface is required to serve and build the frontend. Instructions for installing the CLI can be found in the [Ionic Framework Docs](https://ionicframework.com/docs/installation/cli).
+To publish your images in your docker hub repository run:
+`docker push meristatha/udacity-restapi-feed`
+`docker push meristatha/udacity-restapi-user`
+`docker push meristatha/udacity-frontend`
+`docker push meristatha/reverseproxy`
 
-### Installing project dependencies
+Check your repository that the images were published successfully.
+To list all the running containers run the followring command:
+`docker container ls` (or `docker ps`)
 
-This project uses NPM to manage software dependencies. NPM Relies on the package.json file located in the root of this repository. After cloning, open your terminal and run:
-```bash
-npm install
-```
->_tip_: **npm i** is shorthand for **npm install**
+Then build all the images:
+`docker-compose -f docker-compose-build.yaml build --parallel`
 
-### Setup Backend Node Environment
-You'll need to create a new node server. Open a new terminal within the project directory and run:
-1. Initialize a new project: `npm init`
-2. Install express: `npm i express --save`
-3. Install typescript dependencies: `npm i ts-node-dev tslint typescript  @types/bluebird @types/express @types/node --save-dev`
-4. Look at the `package.json` file from the RestAPI repo and copy the `scripts` block into the auto-generated `package.json` in this project. This will allow you to use shorthand commands like `npm run dev`
+To run all your docker containers:
+`docker-compose up`
 
+To stop and remove all the containers run:
+`docker-compose stop`
 
-### Configure The Backend Endpoint
-Ionic uses enviornment files located in `./src/enviornments/enviornment.*.ts` to load configuration variables at runtime. By default `environment.ts` is used for development and `enviornment.prod.ts` is used for produciton. The `apiHost` variable should be set to your server url either locally or in the cloud.
+## Enable kubernetes on Docker desktop
 
-***
-### Running the Development Server
-Ionic CLI provides an easy to use development server to run and autoreload the frontend. This allows you to make quick changes and see them in real time in your browser. To run the development server, open terminal and run:
+Go to docker settings in Docker desktop, select Kubernetes section and click **Enable Kubernetes**
 
-```bash
-ionic serve
-```
+## Create Kubernetes configurations
 
-### Building the Static Frontend Files
-Ionic CLI can build the frontend into static HTML/CSS/JavaScript files. These files can be uploaded to a host to be consumed by users on the web. Build artifacts are located in `./www`. To build from source, open terminal and run:
-```bash
-ionic build
-```
-***
+Create the secret base64 credentials:
+`kubectl create secret generic db-user-pass --from-file=./aws_access_key_id.txt --from-file=./aws_secret_access_key.txt`
+
+Load secret files:
+`kubectl apply -f aws-secret.yaml`
+`kubectl apply -f env-configmap.yaml`
+`kubectl apply -f env-secret.yaml`
+
+Apply all the service files:
+`kubectl apply -f backend-feed-service.yaml`
+`kubectl apply -f backend-user-service.yaml`
+`kubectl apply -f frontend-service.yaml`
+`kubectl apply -f reverseproxy-service.yaml`
+
+Apply all the deployment files:
+`kubectl apply -f backend-feed-deployment.yaml`
+`kubectl apply -f backend-user-deployment.yaml`
+`kubectl apply -f frontend-deployment.yaml`
+`kubectl apply -f reverseproxy-deployment.yaml`
+`kubectl apply -f pod-example/pod.yaml`
+
+Check the pods status:
+`kubectl get pod` (for more detailed status information run `kubectl get pod -o wide`)
+
+Check the running services:
+`kubectl get service`
+
+Port forwarding commands:
+`kubectl port-forward service/frontend 8100:8100`
+`kubectl port-forward service/reverseproxy 8080:8080`
